@@ -2,5 +2,5 @@
 @plugin "@tailwindcss/typography";
 
 .annotation {
-  @apply bg-yellow-200 hover:bg-yellow-300 cursor-pointer px-1 rounded;
+  @apply bg-amber-100 underline hover:bg-amber-200 cursor-pointer px-1 py-0.5 border-b-2 border-amber-300;
 }
