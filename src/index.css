@@ -4,3 +4,7 @@
 .annotation {
   @apply bg-amber-100 hover:bg-amber-200 cursor-pointer px-1 py-0.5 border-b-2 border-amber-300;
 }
+
+::selection {
+	background: var(--color-amber-300);
+}
