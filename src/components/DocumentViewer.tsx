@@ -1,20 +1,27 @@
-import { useState, useEffect } from 'react';
-import DocumentContent from './DocumentContent';
-import type { DocumentData } from '../types';
+import { useState, useEffect } from "react";
+import DocumentContent from "./DocumentContent";
+import type { Annotation, DocumentData } from "../types";
+import AnnotationModal from "./AnnotationModal";
 
 const DocumentViewer = () => {
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<number | null>(null);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<
+    number | null
+  >(null);
+  const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(
+    null
+  );
+
   useEffect(() => {
-    fetch('http://localhost:3000/api/v1/documents/1')
-      .then(res => res.json())
-      .then(data => {
+    fetch("http://localhost:3000/api/v1/documents/1")
+      .then((res) => res.json())
+      .then((data) => {
         setDocumentData(data);
         setLoading(false);
       })
-      .catch(err => {
-        console.error('Failed to fetch document:', err);
+      .catch((err) => {
+        console.error("Failed to fetch document:", err);
         setLoading(false);
       });
   }, []);
@@ -24,11 +31,26 @@ const DocumentViewer = () => {
 
   const handleDocumentClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    
-    if (target.classList.contains('annotation')) {
-      const annotationId = parseInt(target.getAttribute('data-id') || '0');
-      setSelectedAnnotationId(selectedAnnotationId === annotationId ? null : annotationId);
+
+    if (target.classList.contains("annotation")) {
+      const annotationId = parseInt(target.getAttribute("data-id") || "0");
+      setSelectedAnnotationId(
+        selectedAnnotationId === annotationId ? null : annotationId
+      );
     }
+  };
+
+  const handleSaveAnnotation = (updatedAnnotation: Annotation) => {
+    if (documentData) {
+      const updatedAnnotations = documentData.annotations.map((ann) =>
+        ann.id === updatedAnnotation.id ? updatedAnnotation : ann
+      );
+      setDocumentData({
+        ...documentData,
+        annotations: updatedAnnotations,
+      });
+    }
+    setEditingAnnotation(null);
   };
 
   return (
@@ -40,10 +62,18 @@ const DocumentViewer = () => {
           annotations={documentData.annotations}
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationClick={handleDocumentClick}
+          onEditAnnotation={setEditingAnnotation}
         />
+        {editingAnnotation && (
+          <AnnotationModal
+            annotation={editingAnnotation}
+            onClose={() => setEditingAnnotation(null)}
+            onSave={handleSaveAnnotation}
+          />
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default DocumentViewer
+export default DocumentViewer;

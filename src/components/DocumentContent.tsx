@@ -5,6 +5,7 @@ interface DocumentContentProps {
   annotations: Annotation[];
   selectedAnnotationId: number | null;
   onAnnotationClick: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onEditAnnotation: React.Dispatch<React.SetStateAction<Annotation | null>>;
 }
 
 const DocumentContent = ({
@@ -12,7 +13,8 @@ const DocumentContent = ({
   annotations,
   selectedAnnotationId,
   onAnnotationClick,
-}: // onEditAnnotation
+  onEditAnnotation
+}: 
 DocumentContentProps) => {
   // Parse HTML and inject inline annotations after each annotation span
   const createContentWithInlineAnnotations = () => {
@@ -73,7 +75,7 @@ DocumentContentProps) => {
       const annotationId = selectedAnnotationId;
       const annotation = annotations.find((ann) => ann.id === annotationId);
       if (annotation) {
-        // onEditAnnotation(annotation);
+        onEditAnnotation(annotation);
       }
     } else {
       onAnnotationClick(event);
