@@ -1,4 +1,5 @@
 import type { Annotation } from "../types";
+import { Edit3 } from 'lucide-react';
 
 interface DocumentContentProps {
   htmlContent: string;
