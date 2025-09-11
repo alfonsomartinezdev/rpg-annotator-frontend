@@ -31,7 +31,7 @@ DocumentContentProps) => {
           inlineDiv.className = "inline-annotation";
           inlineDiv.innerHTML = `
           <div class="bg-amber-50 border-l-4 border-amber-400 p-4 my-1">
-            <div class="flex justify-end items-start mb-2">
+            <div class="flex justify-between items-start mb-2">
               <div>
               <p class="text-gray-700 mb-2 mt-0">${annotation.annotation_text}</p>
             <div class="text-xs text-gray-500">
