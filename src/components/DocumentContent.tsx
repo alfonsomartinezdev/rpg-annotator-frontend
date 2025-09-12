@@ -1,5 +1,4 @@
 import type { Annotation } from "../types";
-import { Edit3 } from 'lucide-react';
 
 interface DocumentContentProps {
   htmlContent: string;
@@ -14,7 +13,7 @@ const DocumentContent = ({
   annotations,
   selectedAnnotationId,
   onAnnotationClick,
-  onEditAnnotation
+  onEditAnnotation,
 }: 
 DocumentContentProps) => {
   // Parse HTML and inject inline annotations after each annotation span

@@ -6,12 +6,16 @@ interface AnnotationModalProps {
   annotation: Annotation;
   onClose: () => void;
   onSave: (annotation: Annotation) => void;
+  documentId: number;
+  isNew?: boolean;
 }
 
 const AnnotationModal = ({
   annotation,
   onClose,
   onSave,
+  documentId,
+  isNew = false,
 }: AnnotationModalProps) => {
   const [annotationText, setAnnotationText] = useState(
     annotation.annotation_text
@@ -24,9 +28,7 @@ const AnnotationModal = ({
         onClose();
       }
     };
-
     document.addEventListener("keydown", handleEscape);
-
     return () => {
       document.removeEventListener("keydown", handleEscape);
     };
@@ -34,31 +36,51 @@ const AnnotationModal = ({
 
   const handleSave = async () => {
     setSaving(true);
-
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/v1/annotations/${annotation.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            annotation: {
-              annotation_text: annotationText,
-            },
-          }),
-        }
-      );
+      let response: Response;
+
+      if (isNew) {
+        // CREATE
+        response = await fetch(
+          `http://localhost:3000/api/v1/documents/${documentId}/annotations`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              annotation: {
+                fragment: annotation.fragment,
+                before_context: annotation.before_context,
+                after_context: annotation.after_context,
+                annotation_text: annotationText,
+                author: annotation.author,
+              },
+            }),
+          }
+        );
+      } else {
+        // UPDATE
+        response = await fetch(
+          `http://localhost:3000/api/v1/annotations/${annotation.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              annotation: {
+                annotation_text: annotationText,
+              },
+            }),
+          }
+        );
+      }
 
       if (response.ok) {
-        const updatedAnnotation = await response.json();
-        onSave(updatedAnnotation);
+        const saved = await response.json();
+        onSave(saved);
       } else {
-        console.error("Failed to update annotation");
+        console.error("Failed to save annotation");
       }
-    } catch (error) {
-      console.error("Error updating annotation:", error);
+    } catch (err) {
+      console.error("Error saving annotation:", err);
     } finally {
       setSaving(false);
     }
@@ -90,12 +112,12 @@ const AnnotationModal = ({
           placeholder="Add your annotation..."
         />
 
-        <div className="mb-8">
-          <div className="text-sm text-gray-600">
+        {!isNew && (
+          <div className="mb-8 text-sm text-gray-600">
             By: {annotation.author} •{" "}
             {new Date(annotation.created_at).toLocaleDateString()}
           </div>
-        </div>
+        )}
 
         <div className="flex justify-end space-x-4">
           <button

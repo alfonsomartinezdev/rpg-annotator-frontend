@@ -2,6 +2,8 @@ export interface Annotation {
   id: number;
   fragment: string;
   annotation_text: string;
+  before_context: string;
+  after_context: string;
   author: string;
   created_at: string;
 }
