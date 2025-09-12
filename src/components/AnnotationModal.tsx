@@ -17,21 +17,16 @@ const AnnotationModal = ({
   documentId,
   isNew = false,
 }: AnnotationModalProps) => {
-  const [annotationText, setAnnotationText] = useState(
-    annotation.annotation_text
-  );
+  const [annotationText, setAnnotationText] = useState(annotation.annotation_text);
   const [saving, setSaving] = useState(false);
 
+  // Close modal on Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
   const handleSave = async () => {
@@ -48,9 +43,9 @@ const AnnotationModal = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               annotation: {
-                fragment: annotation.fragment,
-                before_context: annotation.before_context,
-                after_context: annotation.after_context,
+                selection_text: annotation.selection_text,
+                start_offset: annotation.start_offset,
+                end_offset: annotation.end_offset,
                 annotation_text: annotationText,
                 author: annotation.author,
               },
@@ -90,20 +85,13 @@ const AnnotationModal = ({
     <div className="fixed inset-0 bg-white/80 flex items-center justify-center p-4 z-50">
       <div className="bg-white shadow-xl max-w-lg w-full p-8 border-l-4 border-amber-400">
         <div className="flex justify-between items-start mb-6">
-          <h3 className="text-xl font-medium text-gray-900">
-            {annotation.fragment}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl"
-          >
+          <h3 className="text-xl font-medium text-gray-900">{annotation.selection_text}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">
             <X size={20} className="cursor-pointer" />
           </button>
         </div>
 
-        <label className="block text-sm font-medium text-gray-800 mb-3">
-          Your note:
-        </label>
+        <label className="block text-sm font-medium text-gray-800 mb-3">Your note:</label>
         <textarea
           value={annotationText}
           onChange={(e) => setAnnotationText(e.target.value)}
@@ -114,8 +102,7 @@ const AnnotationModal = ({
 
         {!isNew && (
           <div className="mb-8 text-sm text-gray-600">
-            By: {annotation.author} •{" "}
-            {new Date(annotation.created_at).toLocaleDateString()}
+            By: {annotation.author} • {new Date(annotation.created_at).toLocaleDateString()}
           </div>
         )}
 

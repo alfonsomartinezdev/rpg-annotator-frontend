@@ -22,19 +22,24 @@ const DocumentViewer = () => {
   const savedRangeRef = useRef<Range | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
+  // Fetch document from backend
+  const fetchDocument = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/v1/documents/3");
+      const data = await res.json();
+      setDocumentData(data);
+    } catch (err) {
+      console.error("Failed to fetch document:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch("http://localhost:3000/api/v1/documents/1")
-      .then((res) => res.json())
-      .then((data) => {
-        setDocumentData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch document:", err);
-        setLoading(false);
-      });
+    fetchDocument();
   }, []);
 
+  // Track text selection and position tooltip
   useEffect(() => {
     const handleMouseUp = () => {
       const selection = window.getSelection();
@@ -46,67 +51,48 @@ const DocumentViewer = () => {
 
       const range = selection.getRangeAt(0);
       savedRangeRef.current = range.cloneRange();
+      const rects = Array.from(savedRangeRef.current.getClientRects());
 
-      const clientRects = Array.from(savedRangeRef.current.getClientRects());
-      if (clientRects.length === 0) {
+      if (!rects.length) {
         setTooltipPosition(null);
         return;
       }
 
-      let minLeft = Number.POSITIVE_INFINITY;
-      let minTop = Number.POSITIVE_INFINITY;
-      let maxRight = Number.NEGATIVE_INFINITY;
-      let maxBottom = Number.NEGATIVE_INFINITY;
+      let minLeft = Infinity;
+      let minTop = Infinity;
+      let maxRight = -Infinity;
+      let maxBottom = -Infinity;
 
-      for (const r of clientRects) {
+      rects.forEach((r) => {
         minLeft = Math.min(minLeft, r.left);
         minTop = Math.min(minTop, r.top);
-        maxRight = Math.max(maxRight, r.left + r.width);
-        maxBottom = Math.max(maxBottom, r.top + r.height);
-      }
+        maxRight = Math.max(maxRight, r.right);
+        maxBottom = Math.max(maxBottom, r.bottom);
+      });
 
-      const centerXViewport = minLeft + (maxRight - minLeft) / 2;
-      const topViewport = minTop;
+      const wrapper = wrapperRef.current;
+      if (wrapper) {
+        const rect = wrapper.getBoundingClientRect();
+        let x = minLeft + (maxRight - minLeft) / 2 - rect.left;
+        let y = minTop - rect.top - 12;
 
-      // If we have a positioned wrapper, compute coordinates relative to it.
-      // That way the tooltip (which is absolutely positioned inside that wrapper)
-      // lines up without needing window.scroll offsets.
-      const wrapperEl = wrapperRef.current;
-      if (wrapperEl) {
-        const containerRect = wrapperEl.getBoundingClientRect();
-
-        let x = centerXViewport - containerRect.left;
-        let y = topViewport - containerRect.top - 12;
-
-        // If tooltip would go above the container, flip below selection
-        if (y < 8) {
-          y = maxBottom - containerRect.top + 8; // below selection
-        }
-
+        if (y < 8) y = maxBottom - rect.top + 8;
         const padding = 12;
-        const maxX = Math.max(0, wrapperEl.clientWidth - padding);
-        x = Math.max(padding, Math.min(maxX, x));
+        x = Math.max(padding, Math.min(wrapper.clientWidth - padding, x));
 
-        requestAnimationFrame(() => {
-          setTooltipPosition({ x, y });
-        });
+        requestAnimationFrame(() => setTooltipPosition({ x, y }));
       } else {
-        // Fallback: position relative to the page (adds scroll offsets)
-        requestAnimationFrame(() => {
-          setTooltipPosition({
-            x: centerXViewport + window.scrollX,
-            y: topViewport + window.scrollY - 12,
-          });
-        });
+        requestAnimationFrame(() =>
+          setTooltipPosition({ x: minLeft + window.scrollX, y: minTop + window.scrollY - 12 })
+        );
       }
     };
 
     document.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
+    return () => document.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
+  // Keep selection active when tooltip renders
   useEffect(() => {
     if (tooltipPosition && savedRangeRef.current) {
       requestAnimationFrame(() => {
@@ -123,12 +109,12 @@ const DocumentViewer = () => {
   const handleDocumentClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains("annotation")) {
-      const annotationId = parseInt(target.getAttribute("data-id") || "0", 10);
+      const annotationId = parseInt(target.dataset.id || "0", 10);
       setSelectedAnnotationId(selectedAnnotationId === annotationId ? null : annotationId);
     }
   };
 
-  const handleSaveAnnotation = (updatedAnnotation: Annotation) => {
+  const handleSaveAnnotation = async (updatedAnnotation: Annotation) => {
     if (documentData) {
       const updatedAnnotations = documentData.annotations.map((ann) =>
         ann.id === updatedAnnotation.id ? updatedAnnotation : ann
@@ -136,30 +122,29 @@ const DocumentViewer = () => {
       setDocumentData({ ...documentData, annotations: updatedAnnotations });
     }
     setEditingAnnotation(null);
+    await fetchDocument();
   };
 
-const handleAddNote = () => {
-  if (savedRangeRef.current) {
-    const fragment = savedRangeRef.current.toString();
-    if (!fragment.trim()) return;
+  // Add a new annotation
+  const handleAddNote = () => {
+    if (!savedRangeRef.current) return;
 
-    const containerText = savedRangeRef.current.startContainer.parentElement?.textContent || "";
-    const startOffset = savedRangeRef.current.startOffset;
-    const endOffset = startOffset + fragment.length;
+    const selectionText = savedRangeRef.current.toString().trim();
+    if (!selectionText) return;
 
-    const before_context = containerText
-      .slice(Math.max(0, startOffset - 30), startOffset)
-      .trim();
+    const documentElement = wrapperRef.current;
+    if (!documentElement) return;
 
-    const after_context = containerText
-      .slice(endOffset, endOffset + 30)
-      .trim();
+    const allTextRange = document.createRange();
+    allTextRange.selectNodeContents(documentElement);
+    const startOffset = allTextRange.toString().indexOf(selectionText);
+    const endOffset = startOffset + selectionText.length;
 
     const newAnnotation: Annotation = {
       id: Date.now(),
-      fragment,
-      before_context,
-      after_context,
+      selection_text: selectionText,
+      start_offset: startOffset,
+      end_offset: endOffset,
       annotation_text: "",
       author: "current_user",
       created_at: new Date().toISOString(),
@@ -167,9 +152,7 @@ const handleAddNote = () => {
 
     setEditingAnnotation(newAnnotation);
     setTooltipPosition(null);
-  }
-};
-
+  };
 
   const handleCancelSelection = () => {
     setTooltipPosition(null);
@@ -180,11 +163,7 @@ const handleAddNote = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div
-        className="prose relative"
-        ref={wrapperRef}
-        onClick={handleDocumentClick}
-      >
+      <div className="prose relative" ref={wrapperRef} onClick={handleDocumentClick}>
         <MemoizedDocumentContent
           htmlContent={documentData.document.rendered_content}
           annotations={documentData.annotations}
@@ -193,7 +172,6 @@ const handleAddNote = () => {
           onEditAnnotation={setEditingAnnotation}
         />
 
-        {/* Tooltip when a selection exists */}
         {tooltipPosition && (
           <SelectionTooltip
             position={tooltipPosition}
