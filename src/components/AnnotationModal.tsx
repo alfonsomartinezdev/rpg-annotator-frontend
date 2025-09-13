@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Annotation } from "../types";
 import { X } from "lucide-react";
+import { API_BASE } from "../constants";
 
 interface AnnotationModalProps {
   annotation: Annotation;
@@ -37,7 +38,7 @@ const AnnotationModal = ({
       if (isNew) {
         // CREATE
         response = await fetch(
-          `http://localhost:3000/api/v1/documents/${documentId}/annotations`,
+          `${API_BASE}/api/v1/documents/${documentId}/annotations`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -55,7 +56,7 @@ const AnnotationModal = ({
       } else {
         // UPDATE
         response = await fetch(
-          `http://localhost:3000/api/v1/annotations/${annotation.id}`,
+          `${API_BASE}/api/v1/annotations/${annotation.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

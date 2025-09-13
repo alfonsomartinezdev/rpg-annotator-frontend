@@ -3,6 +3,7 @@ import DocumentContent from "./DocumentContent";
 import type { Annotation, DocumentData } from "../types";
 import AnnotationModal from "./AnnotationModal";
 import SelectionTooltip from "./SelectionTooltip";
+import { API_BASE } from "../constants";
 
 const MemoizedDocumentContent = React.memo(
   DocumentContent,
@@ -24,7 +25,7 @@ const DocumentViewer = () => {
 
   const fetchDocument = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/v1/documents/3");
+      const res = await fetch(`${API_BASE}/api/v1/documents/1`);
       const data = await res.json();
       setDocumentData(data);
     } catch (err) {
@@ -123,7 +124,7 @@ const DocumentViewer = () => {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/api/v1/annotations/${annotation.id}`,
+        `${API_BASE}/api/v1/annotations/${annotation.id}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error("Failed to delete annotation");
