@@ -6,8 +6,8 @@ import InlineAnnotation from './InlineAnnotation';
 interface DocumentContentProps {
   htmlContent: string;
   annotations: Annotation[];
-  selectedAnnotationId: number | null;
-  onAnnotationClick: (event: React.MouseEvent<HTMLDivElement>) => void;
+  selectedAnnotationIds: number[];
+  onAnnotationToggle: (id: number) => void;
   onEditAnnotation: React.Dispatch<React.SetStateAction<Annotation | null>>;
   onDeleteAnnotation: (annotation: Annotation) => void;
 }
@@ -15,15 +15,15 @@ interface DocumentContentProps {
 const DocumentContent = ({
   htmlContent,
   annotations,
-  selectedAnnotationId,
-  onAnnotationClick,
+  selectedAnnotationIds,
+  onAnnotationToggle,
   onEditAnnotation,
   onDeleteAnnotation
 }: DocumentContentProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const reactRootsRef = useRef<Map<number, Root>>(new Map());
+  const reactContainersRef = useRef<Map<number, HTMLElement>>(new Map());
 
-  // Process HTML with annotations
   const processHTML = () => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
@@ -52,7 +52,7 @@ const DocumentContent = ({
 
     annotations.forEach((ann) => {
       const { start_offset, end_offset, id } = ann;
-
+      
       let startNodeInfo: TextNodeInfo | null = null;
       let endNodeInfo: TextNodeInfo | null = null;
 
@@ -102,49 +102,71 @@ const DocumentContent = ({
   const processedHTML = processHTML();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    // Clean up existing roots without unmounting during render
-    const existingContainers = containerRef.current.querySelectorAll('.inline-annotation-container');
-    existingContainers.forEach(container => {
-      const id = parseInt(container.getAttribute('data-annotation-id') || '0');
-      if (id !== selectedAnnotationId) {
-        const root = reactRootsRef.current.get(id);
-        if (root) {
-          // Use requestIdleCallback or setTimeout to defer unmounting
-          requestIdleCallback(() => {
-            root.unmount();
-            reactRootsRef.current.delete(id);
-          });
-        }
-        container.remove();
+    const existingContainers = container.querySelectorAll('.inline-annotation-container');
+    existingContainers.forEach(c => {
+      const id = parseInt(c.getAttribute('data-annotation-id') || '0', 10);
+      if (!selectedAnnotationIds.includes(id)) {
+        c.setAttribute("style", "display: none;");
+      } else {
+        c.setAttribute("style", "display: block;");
       }
     });
 
-    if (selectedAnnotationId) {
-      const annotation = annotations.find(ann => ann.id === selectedAnnotationId);
+    reactRootsRef.current.forEach((root, id) => {
+      const knownContainer = reactContainersRef.current.get(id);
+      if (!knownContainer || !knownContainer.isConnected) {
+        try { root.unmount(); } catch { /* ignore */ }
+        reactRootsRef.current.delete(id);
+        reactContainersRef.current.delete(id);
+      }
+    });
+
+    selectedAnnotationIds.forEach((selectedId) => {
+      const annotation = annotations.find(ann => ann.id === selectedId);
       if (!annotation) return;
 
-      let reactContainer = containerRef.current.querySelector(`[data-annotation-id='${selectedAnnotationId}']`) as HTMLElement;
+      let reactContainer = container.querySelector(
+        `[data-annotation-id='${selectedId}']`
+      ) as HTMLElement | null;
 
       if (!reactContainer) {
-        const span = containerRef.current.querySelector(`.annotation[data-id='${selectedAnnotationId}']`);
+        const span = container.querySelector(`.annotation[data-id='${selectedId}']`);
         if (!span) return;
 
         reactContainer = document.createElement('div');
         reactContainer.className = 'inline-annotation-container';
-        reactContainer.setAttribute('data-annotation-id', selectedAnnotationId.toString());
+        reactContainer.setAttribute('data-annotation-id', selectedId.toString());
+        reactContainer.style.display = "block";
 
         const parentElement = span.closest("p, li, div, h1, h2, h3, h4, h5, h6");
         if (parentElement?.parentNode) {
           parentElement.parentNode.insertBefore(reactContainer, parentElement.nextSibling);
+        } else {
+          container.appendChild(reactContainer);
         }
+      } else {
+        reactContainer.style.display = "block";
       }
 
-      let root = reactRootsRef.current.get(selectedAnnotationId);
+      let root = reactRootsRef.current.get(selectedId);
+      const knownContainer = reactContainersRef.current.get(selectedId);
+
+      if (root && knownContainer && !knownContainer.isSameNode(reactContainer)) {
+        try { root.unmount(); } catch { /* ignore */ }
+        reactRootsRef.current.delete(selectedId);
+        reactContainersRef.current.delete(selectedId);
+        root = undefined;
+      }
+
       if (!root) {
         root = createRoot(reactContainer);
-        reactRootsRef.current.set(selectedAnnotationId, root);
+        reactRootsRef.current.set(selectedId, root);
+        reactContainersRef.current.set(selectedId, reactContainer);
+      } else {
+        reactContainersRef.current.set(selectedId, reactContainer);
       }
 
       root.render(
@@ -154,36 +176,48 @@ const DocumentContent = ({
           onDelete={onDeleteAnnotation}
         />
       );
-    }
-  }, [annotations, selectedAnnotationId, onEditAnnotation, onDeleteAnnotation]);
+    });
+  }, [annotations, selectedAnnotationIds, onEditAnnotation, onDeleteAnnotation]);
 
   useEffect(() => {
-  const rootsMap = reactRootsRef.current;
+  const roots = reactRootsRef.current;
+  const containers = reactContainersRef.current;
 
   return () => {
-    requestIdleCallback(() => {
-      rootsMap.forEach((root) => root.unmount());
-      rootsMap.clear();
+    roots.forEach((root) => {
+      try { root.unmount(); } catch { /* ignore */ }
     });
+    roots.clear();
+    containers.clear();
   };
 }, []);
 
+
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
     if (target.closest('.inline-annotation-container')) {
       return;
     }
-    
-    onAnnotationClick(event);
+
+    const annEl = target.closest('.annotation') as HTMLElement | null;
+    if (annEl) {
+      const id = parseInt(annEl.getAttribute('data-id') || '0', 10);
+      if (id) {
+        onAnnotationToggle(id);
+        return;
+      }
+    }
+
   };
 
   return (
-    <div 
+    <div
       key={`${annotations.length}-${annotations.map(a => a.id).join(',')}`}
       ref={containerRef}
-      dangerouslySetInnerHTML={{ __html: processedHTML }} 
-      onClick={handleClick} 
+      dangerouslySetInnerHTML={{ __html: processedHTML }}
+      onClick={handleClick}
     />
   );
 };

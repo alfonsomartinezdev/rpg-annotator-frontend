@@ -2,7 +2,7 @@
 
 This is the frontend for **RPG Annotator**, a simple tool for highlighting and annotating text in a document. It's meant as a fun prop in a mystery RPG game where players have access to evidence they can write notes on to keep track of clues and connections.
 
-👉 Live demo: [rpg-annotator-frontend.onrender.com](https://rpg-annotator-frontend.onrender.com)
+Live demo: [rpg-annotator-frontend.onrender.com](https://rpg-annotator-frontend.onrender.com)
 
 ---
 

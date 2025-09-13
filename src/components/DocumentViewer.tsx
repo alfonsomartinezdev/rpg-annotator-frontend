@@ -10,13 +10,13 @@ const MemoizedDocumentContent = React.memo(
   (prev, next) =>
     prev.htmlContent === next.htmlContent &&
     prev.annotations === next.annotations &&
-    prev.selectedAnnotationId === next.selectedAnnotationId
+    prev.selectedAnnotationIds.join(",") === next.selectedAnnotationIds.join(",")
 );
 
 const DocumentViewer = () => {
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<number | null>(null);
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>([]);
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
@@ -100,12 +100,8 @@ const DocumentViewer = () => {
   if (loading) return <div>Loading...</div>;
   if (!documentData) return <div>Failed to load document</div>;
 
-  const handleDocumentClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.classList.contains("annotation")) {
-      const id = parseInt(target.dataset.id || "0", 10);
-      setSelectedAnnotationId(selectedAnnotationId === id ? null : id);
-    }
+  const handleToggleAnnotation = (id: number) => {
+    setSelectedAnnotationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleSaveAnnotation = async (updatedAnnotation: Annotation) => {
@@ -130,9 +126,7 @@ const DocumentViewer = () => {
       if (!res.ok) throw new Error("Failed to delete annotation");
 
       await fetchDocument();
-      if (selectedAnnotationId === annotation.id) {
-        setSelectedAnnotationId(null);
-      }
+      setSelectedAnnotationIds((prev) => prev.filter((id) => id !== annotation.id));
     } catch (err) {
       console.error("Error deleting annotation:", err);
     }
@@ -182,7 +176,6 @@ const DocumentViewer = () => {
       <div
         className="prose relative"
         ref={wrapperRef}
-        onClick={handleDocumentClick}
       >
         <MemoizedDocumentContent
           key={`annotations-${documentData.annotations.length}-${documentData.annotations
@@ -190,8 +183,8 @@ const DocumentViewer = () => {
             .join(",")}`}
           htmlContent={documentData.document.rendered_content}
           annotations={documentData.annotations}
-          selectedAnnotationId={selectedAnnotationId}
-          onAnnotationClick={handleDocumentClick}
+          selectedAnnotationIds={selectedAnnotationIds}
+          onAnnotationToggle={handleToggleAnnotation}
           onEditAnnotation={setEditingAnnotation}
           onDeleteAnnotation={handleDeleteAnnotation}
         />
