@@ -1,4 +1,7 @@
+import React, { useEffect, useRef } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import type { Annotation } from "../types";
+import InlineAnnotation from './InlineAnnotation';
 
 interface DocumentContentProps {
   htmlContent: string;
@@ -15,10 +18,12 @@ const DocumentContent = ({
   onAnnotationClick,
   onEditAnnotation,
 }: DocumentContentProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const reactRootsRef = useRef<Map<number, Root>>(new Map());
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlContent, "text/html");
 
-  // Build mapping of plain-text index -> text node
   type TextNodeInfo = {
     node: Text;
     start: number;
@@ -41,7 +46,6 @@ const DocumentContent = ({
 
   doc.body.childNodes.forEach(traverse);
 
-  // Wrap annotation text in spans using offsets
   annotations.forEach((ann) => {
     const { start_offset, end_offset, id } = ann;
 
@@ -90,46 +94,92 @@ const DocumentContent = ({
     }
   });
 
-  // Inject inline annotation divs if selected
-  annotations.forEach((ann) => {
-    if (ann.id !== selectedAnnotationId) return;
+useEffect(() => {
+  if (!containerRef.current) return;
 
-    const span = doc.querySelector(`.annotation[data-id='${ann.id}']`);
-    if (!span) return;
+  const currentlyRendered = new Set(
+    Array.from(containerRef.current.querySelectorAll('.inline-annotation-container'))
+      .map(el => parseInt(el.getAttribute('data-annotation-id') || '0'))
+  );
 
-    const inlineDiv = doc.createElement("div");
-    inlineDiv.className = "inline-annotation";
-    inlineDiv.innerHTML = `
-      <div class="bg-amber-50 border-l-4 border-amber-400 p-4 my-1">
-        <div class="flex justify-between items-start mb-2">
-          <div>
-            <p class="text-gray-700 mb-2 mt-0">${ann.annotation_text}</p>
-            <div class="text-xs text-gray-500">
-              By: ${ann.author} • ${new Date(ann.created_at).toLocaleDateString()}
-            </div>
-          </div>
-          <button class="cursor-pointer edit-btn text-amber-600 hover:text-amber-800 text-sm">Edit</button>
-        </div>
-      </div>
-    `;
-
-    const parentElement = span.closest("p, li, div, h1, h2, h3, h4, h5, h6");
-    if (parentElement && parentElement.parentNode) {
-      parentElement.parentNode.insertBefore(inlineDiv, parentElement.nextSibling);
+  currentlyRendered.forEach(id => {
+    if (id !== selectedAnnotationId) {
+      const root = reactRootsRef.current.get(id);
+      if (root) {
+        root.unmount();
+        reactRootsRef.current.delete(id);
+      }
+      containerRef.current?.querySelector(`[data-annotation-id='${id}']`)?.remove();
     }
   });
 
+  if (selectedAnnotationId) {
+    const annotation = annotations.find(ann => ann.id === selectedAnnotationId);
+    if (!annotation) return;
+
+    let reactContainer = containerRef.current.querySelector(`[data-annotation-id='${selectedAnnotationId}']`) as HTMLElement;
+    let root = reactRootsRef.current.get(selectedAnnotationId);
+
+    if (!reactContainer) {
+      const span = containerRef.current.querySelector(`.annotation[data-id='${selectedAnnotationId}']`);
+      if (!span) return;
+
+      reactContainer = document.createElement('div');
+      reactContainer.className = 'inline-annotation-container';
+      reactContainer.setAttribute('data-annotation-id', selectedAnnotationId.toString());
+
+      const parentElement = span.closest("p, li, div, h1, h2, h3, h4, h5, h6");
+      if (parentElement && parentElement.parentNode) {
+        parentElement.parentNode.insertBefore(reactContainer, parentElement.nextSibling);
+      }
+    }
+
+    if (!root) {
+      root = createRoot(reactContainer);
+      reactRootsRef.current.set(selectedAnnotationId, root);
+    }
+
+    root.render(
+      <InlineAnnotation
+        annotation={annotation}
+        onEdit={() => onEditAnnotation(annotation)}
+      />
+    );
+  }
+
+  const rootsMap = reactRootsRef.current;
+
+  return () => {
+    rootsMap.forEach(root => root.unmount());
+    rootsMap.clear();
+  };
+}, [annotations, selectedAnnotationId, onEditAnnotation]);
+
+  useEffect(() => {
+  const rootsToCleanup = new Map(reactRootsRef.current);
+  
+  return () => {
+    rootsToCleanup.forEach(root => root.unmount());
+  };
+}, []);
+
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
-    if (target.classList.contains("edit-btn")) {
-      const annotation = annotations.find((ann) => ann.id === selectedAnnotationId);
-      if (annotation) onEditAnnotation(annotation);
-    } else {
-      onAnnotationClick(event);
+    
+    if (target.closest('.inline-annotation-container')) {
+      return;
     }
+    
+    onAnnotationClick(event);
   };
 
-  return <div dangerouslySetInnerHTML={{ __html: doc.body.innerHTML }} onClick={handleClick} />;
+  return (
+    <div 
+      ref={containerRef}
+      dangerouslySetInnerHTML={{ __html: doc.body.innerHTML }} 
+      onClick={handleClick} 
+    />
+  );
 };
 
 export default DocumentContent;

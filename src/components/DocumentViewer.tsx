@@ -22,7 +22,6 @@ const DocumentViewer = () => {
   const savedRangeRef = useRef<Range | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch document from backend
   const fetchDocument = async () => {
     try {
       const res = await fetch("http://localhost:3000/api/v1/documents/3");
@@ -39,7 +38,6 @@ const DocumentViewer = () => {
     fetchDocument();
   }, []);
 
-  // Track text selection and position tooltip
   useEffect(() => {
     const handleMouseUp = () => {
       const selection = window.getSelection();
@@ -92,7 +90,6 @@ const DocumentViewer = () => {
     return () => document.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
-  // Keep selection active when tooltip renders
   useEffect(() => {
     if (tooltipPosition && savedRangeRef.current) {
       requestAnimationFrame(() => {
@@ -134,7 +131,7 @@ const getTextOffset = (root: Node, node: Node, offset: number): number => {
   );
 
   let currentNode;
-  while (currentNode = walker.nextNode()) {
+  while ((currentNode = walker.nextNode())) {
     if (currentNode === node) {
       return textOffset + offset;
     }
