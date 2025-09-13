@@ -125,34 +125,54 @@ const DocumentViewer = () => {
     await fetchDocument();
   };
 
-  // Add a new annotation
+const getTextOffset = (root: Node, node: Node, offset: number): number => {
+  let textOffset = 0;
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  let currentNode;
+  while (currentNode = walker.nextNode()) {
+    if (currentNode === node) {
+      return textOffset + offset;
+    }
+    textOffset += currentNode.textContent?.length || 0;
+  }
+  
+  return textOffset;
+};
+
   const handleAddNote = () => {
-    if (!savedRangeRef.current) return;
+  if (!savedRangeRef.current) return;
 
-    const selectionText = savedRangeRef.current.toString().trim();
-    if (!selectionText) return;
+  const selectionText = savedRangeRef.current.toString().trim();
+  if (!selectionText) return;
 
-    const documentElement = wrapperRef.current;
-    if (!documentElement) return;
+  const documentElement = wrapperRef.current;
+  if (!documentElement) return;
 
-    const allTextRange = document.createRange();
-    allTextRange.selectNodeContents(documentElement);
-    const startOffset = allTextRange.toString().indexOf(selectionText);
-    const endOffset = startOffset + selectionText.length;
+  const startOffset = getTextOffset(
+    documentElement, 
+    savedRangeRef.current.startContainer, 
+    savedRangeRef.current.startOffset
+  );
+  const endOffset = startOffset + selectionText.length;
 
-    const newAnnotation: Annotation = {
-      id: Date.now(),
-      selection_text: selectionText,
-      start_offset: startOffset,
-      end_offset: endOffset,
-      annotation_text: "",
-      author: "current_user",
-      created_at: new Date().toISOString(),
-    };
-
-    setEditingAnnotation(newAnnotation);
-    setTooltipPosition(null);
+  const newAnnotation: Annotation = {
+    id: Date.now(),
+    selection_text: selectionText,
+    start_offset: startOffset,
+    end_offset: endOffset,
+    annotation_text: "",
+    author: "current_user",
+    created_at: new Date().toISOString(),
   };
+
+  setEditingAnnotation(newAnnotation);
+  setTooltipPosition(null);
+};
 
   const handleCancelSelection = () => {
     setTooltipPosition(null);
