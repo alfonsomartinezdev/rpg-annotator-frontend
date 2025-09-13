@@ -47,26 +47,19 @@ const DocumentViewer = () => {
         return;
       }
 
-      const range = selection.getRangeAt(0);
-      savedRangeRef.current = range.cloneRange();
-      const rects = Array.from(savedRangeRef.current.getClientRects());
+      const range = selection.getRangeAt(0).cloneRange();
+      savedRangeRef.current = range;
+      const rects = Array.from(range.getClientRects());
 
       if (!rects.length) {
         setTooltipPosition(null);
         return;
       }
 
-      let minLeft = Infinity;
-      let minTop = Infinity;
-      let maxRight = -Infinity;
-      let maxBottom = -Infinity;
-
-      rects.forEach((r) => {
-        minLeft = Math.min(minLeft, r.left);
-        minTop = Math.min(minTop, r.top);
-        maxRight = Math.max(maxRight, r.right);
-        maxBottom = Math.max(maxBottom, r.bottom);
-      });
+      const minLeft = Math.min(...rects.map((r) => r.left));
+      const minTop = Math.min(...rects.map((r) => r.top));
+      const maxRight = Math.max(...rects.map((r) => r.right));
+      const maxBottom = Math.max(...rects.map((r) => r.bottom));
 
       const wrapper = wrapperRef.current;
       if (wrapper) {
@@ -81,7 +74,10 @@ const DocumentViewer = () => {
         requestAnimationFrame(() => setTooltipPosition({ x, y }));
       } else {
         requestAnimationFrame(() =>
-          setTooltipPosition({ x: minLeft + window.scrollX, y: minTop + window.scrollY - 12 })
+          setTooltipPosition({
+            x: minLeft + window.scrollX,
+            y: minTop + window.scrollY - 12,
+          })
         );
       }
     };
@@ -106,8 +102,8 @@ const DocumentViewer = () => {
   const handleDocumentClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (target.classList.contains("annotation")) {
-      const annotationId = parseInt(target.dataset.id || "0", 10);
-      setSelectedAnnotationId(selectedAnnotationId === annotationId ? null : annotationId);
+      const id = parseInt(target.dataset.id || "0", 10);
+      setSelectedAnnotationId(selectedAnnotationId === id ? null : id);
     }
   };
 
@@ -122,78 +118,87 @@ const DocumentViewer = () => {
     await fetchDocument();
   };
 
-const getTextOffset = (root: Node, node: Node, offset: number): number => {
-  let textOffset = 0;
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_TEXT,
-    null
-  );
+  const handleDeleteAnnotation = async (annotation: Annotation) => {
+    if (!documentData) return;
 
-  let currentNode;
-  while ((currentNode = walker.nextNode())) {
-    if (currentNode === node) {
-      return textOffset + offset;
+    try {
+      const res = await fetch(
+        `http://localhost:3000/api/v1/annotations/${annotation.id}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error("Failed to delete annotation");
+
+      await fetchDocument();
+      if (selectedAnnotationId === annotation.id) {
+        setSelectedAnnotationId(null);
+      }
+    } catch (err) {
+      console.error("Error deleting annotation:", err);
     }
-    textOffset += currentNode.textContent?.length || 0;
-  }
-  
-  return textOffset;
-};
-
-  const handleAddNote = () => {
-  if (!savedRangeRef.current) return;
-
-  const selectionText = savedRangeRef.current.toString().trim();
-  if (!selectionText) return;
-
-  const documentElement = wrapperRef.current;
-  if (!documentElement) return;
-
-  const startOffset = getTextOffset(
-    documentElement, 
-    savedRangeRef.current.startContainer, 
-    savedRangeRef.current.startOffset
-  );
-  const endOffset = startOffset + selectionText.length;
-
-  const newAnnotation: Annotation = {
-    id: Date.now(),
-    selection_text: selectionText,
-    start_offset: startOffset,
-    end_offset: endOffset,
-    annotation_text: "",
-    author: "current_user",
-    created_at: new Date().toISOString(),
   };
 
-  setEditingAnnotation(newAnnotation);
-  setTooltipPosition(null);
-};
+  const getTextOffset = (root: Node, node: Node, offset: number): number => {
+    let textOffset = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let current: Node | null;
 
-  const handleCancelSelection = () => {
+    while ((current = walker.nextNode())) {
+      if (current === node) return textOffset + offset;
+      textOffset += current.textContent?.length || 0;
+    }
+    return textOffset;
+  };
+
+  const handleAddNote = () => {
+    if (!savedRangeRef.current || !wrapperRef.current) return;
+
+    const text = savedRangeRef.current.toString().trim();
+    if (!text) return;
+
+    const start = getTextOffset(
+      wrapperRef.current,
+      savedRangeRef.current.startContainer,
+      savedRangeRef.current.startOffset
+    );
+    const end = start + text.length;
+
+    const newAnnotation: Annotation = {
+      id: Date.now(),
+      selection_text: text,
+      start_offset: start,
+      end_offset: end,
+      annotation_text: "",
+      author: "current_user",
+      created_at: new Date().toISOString(),
+    };
+
+    setEditingAnnotation(newAnnotation);
     setTooltipPosition(null);
-    savedRangeRef.current = null;
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
   };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="prose relative" ref={wrapperRef} onClick={handleDocumentClick}>
+      <div
+        className="prose relative"
+        ref={wrapperRef}
+        onClick={handleDocumentClick}
+      >
         <MemoizedDocumentContent
+          key={`annotations-${documentData.annotations.length}-${documentData.annotations
+            .map((a) => a.id)
+            .join(",")}`}
           htmlContent={documentData.document.rendered_content}
           annotations={documentData.annotations}
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationClick={handleDocumentClick}
           onEditAnnotation={setEditingAnnotation}
+          onDeleteAnnotation={handleDeleteAnnotation}
         />
 
         {tooltipPosition && (
           <SelectionTooltip
             position={tooltipPosition}
             onAddNote={handleAddNote}
-            onCancel={handleCancelSelection}
           />
         )}
 
