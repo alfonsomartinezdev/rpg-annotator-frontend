@@ -114,13 +114,7 @@ const DocumentViewer = () => {
     setSelectedAnnotationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const handleSaveAnnotation = async (updatedAnnotation: Annotation) => {
-    if (documentData) {
-      const updatedAnnotations = documentData.annotations.map((ann) =>
-        ann.id === updatedAnnotation.id ? updatedAnnotation : ann
-      );
-      setDocumentData({ ...documentData, annotations: updatedAnnotations });
-    }
+  const handleSaveAnnotation = async () => {
     setEditingState(null);
     await fetchDocument();
   };

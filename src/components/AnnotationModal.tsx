@@ -6,7 +6,7 @@ import { API_BASE } from "../constants";
 interface AnnotationModalProps {
   annotation: Annotation;
   onClose: () => void;
-  onSave: (annotation: Annotation) => void;
+  onSave: () => void;
   documentId: number;
   isNew: boolean;
 }
@@ -70,8 +70,7 @@ const AnnotationModal = ({
       }
 
       if (response.ok) {
-        const saved = await response.json();
-        onSave(saved);
+        onSave();
       } else {
         console.error("Failed to save annotation");
       }
