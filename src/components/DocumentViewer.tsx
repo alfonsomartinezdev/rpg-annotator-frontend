@@ -25,7 +25,7 @@ const DocumentViewer = () => {
 
   const fetchDocument = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/documents/1`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/2`);
       const data = await res.json();
       setDocumentData(data);
     } catch (err) {
