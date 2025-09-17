@@ -15,12 +15,17 @@ const MemoizedDocumentContent = React.memo(
     prev.selectedAnnotationIds.join(",") === next.selectedAnnotationIds.join(",")
 );
 
+type EditingState = {
+  annotation: Annotation;
+  isNew: boolean;
+};
+
 const DocumentViewer = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>([]);
-  const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
+  const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   const savedRangeRef = useRef<Range | null>(null);
@@ -42,7 +47,7 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     fetchDocument();
-  }, [documentId,fetchDocument]);
+  }, [documentId, fetchDocument]);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -116,7 +121,7 @@ const DocumentViewer = () => {
       );
       setDocumentData({ ...documentData, annotations: updatedAnnotations });
     }
-    setEditingAnnotation(null);
+    setEditingState(null);
     await fetchDocument();
   };
 
@@ -135,6 +140,14 @@ const DocumentViewer = () => {
     } catch (err) {
       console.error("Error deleting annotation:", err);
     }
+  };
+
+  const handleEditAnnotation = (annotation: Annotation) => {
+    setEditingState({ annotation, isNew: false });
+  };
+
+  const handleCloseModal = () => {
+    setEditingState(null);
   };
 
   const getTextOffset = (root: Node, node: Node, offset: number): number => {
@@ -162,6 +175,9 @@ const DocumentViewer = () => {
     );
     const end = start + text.length;
 
+    console.log("start offset: ", start)
+    console.log("end offset: ", end)
+
     const newAnnotation: Annotation = {
       id: Date.now(),
       selection_text: text,
@@ -172,7 +188,7 @@ const DocumentViewer = () => {
       created_at: new Date().toISOString(),
     };
 
-    setEditingAnnotation(newAnnotation);
+    setEditingState({ annotation: newAnnotation, isNew: true });
     setTooltipPosition(null);
   };
 
@@ -197,7 +213,7 @@ const DocumentViewer = () => {
           annotations={documentData.annotations}
           selectedAnnotationIds={selectedAnnotationIds}
           onAnnotationToggle={handleToggleAnnotation}
-          onEditAnnotation={setEditingAnnotation}
+          onEditAnnotation={handleEditAnnotation}
           onDeleteAnnotation={handleDeleteAnnotation}
         />
 
@@ -208,16 +224,13 @@ const DocumentViewer = () => {
           />
         )}
 
-        {editingAnnotation && (
+        {editingState && (
           <AnnotationModal
-            annotation={editingAnnotation}
-            onClose={() => setEditingAnnotation(null)}
+            annotation={editingState.annotation}
+            onClose={handleCloseModal}
             onSave={handleSaveAnnotation}
             documentId={documentData.document.id}
-            isNew={
-              editingAnnotation.id.toString().startsWith("temp-") ||
-              editingAnnotation.id > Date.now() - 1000
-            }
+            isNew={editingState.isNew}
           />
         )}
       </div>

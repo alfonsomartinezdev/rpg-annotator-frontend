@@ -8,7 +8,7 @@ interface DocumentContentProps {
   annotations: Annotation[];
   selectedAnnotationIds: number[];
   onAnnotationToggle: (id: number) => void;
-  onEditAnnotation: React.Dispatch<React.SetStateAction<Annotation | null>>;
+  onEditAnnotation: (annotation: Annotation) => void;
   onDeleteAnnotation: (annotation: Annotation) => void;
 }
 

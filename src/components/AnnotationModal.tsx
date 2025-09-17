@@ -8,7 +8,7 @@ interface AnnotationModalProps {
   onClose: () => void;
   onSave: (annotation: Annotation) => void;
   documentId: number;
-  isNew?: boolean;
+  isNew: boolean;
 }
 
 const AnnotationModal = ({
@@ -16,7 +16,7 @@ const AnnotationModal = ({
   onClose,
   onSave,
   documentId,
-  isNew = false,
+  isNew,
 }: AnnotationModalProps) => {
   const [annotationText, setAnnotationText] = useState(annotation.annotation_text);
   const [saving, setSaving] = useState(false);
@@ -119,7 +119,7 @@ const AnnotationModal = ({
             disabled={saving || !annotationText.trim()}
             className="px-6 py-2 bg-amber-400 text-gray-900 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Saving..." : "Save"}
+            {isNew ? "Create" : "Save"}
           </button>
         </div>
       </div>
