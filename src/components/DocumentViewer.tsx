@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import DocumentContent from "./DocumentContent";
 import type { Annotation, DocumentData } from "../types";
 import AnnotationModal from "./AnnotationModal";
@@ -14,6 +16,7 @@ const MemoizedDocumentContent = React.memo(
 );
 
 const DocumentViewer = () => {
+  const { documentId } = useParams<{ documentId: string }>();
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>([]);
@@ -23,9 +26,11 @@ const DocumentViewer = () => {
   const savedRangeRef = useRef<Range | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchDocument = async () => {
+  const fetchDocument = useCallback(async () => {
+    if (!documentId) return;
+    
     try {
-      const res = await fetch(`${API_BASE}/api/v1/documents/2`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/${documentId}`);
       const data = await res.json();
       setDocumentData(data);
     } catch (err) {
@@ -33,11 +38,11 @@ const DocumentViewer = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [documentId]);
 
   useEffect(() => {
     fetchDocument();
-  }, []);
+  }, [documentId,fetchDocument]);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -163,7 +168,7 @@ const DocumentViewer = () => {
       start_offset: start,
       end_offset: end,
       annotation_text: "",
-      author: "current_user",
+      author: "Anonymous",
       created_at: new Date().toISOString(),
     };
 
@@ -173,6 +178,13 @@ const DocumentViewer = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      <Link 
+        to="/" 
+        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
+      >
+        <ArrowLeft size={16} />
+        Back to Documents
+      </Link>
       <div
         className="prose relative"
         ref={wrapperRef}
