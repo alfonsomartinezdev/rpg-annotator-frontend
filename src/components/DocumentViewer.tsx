@@ -12,7 +12,8 @@ const MemoizedDocumentContent = React.memo(
   (prev, next) =>
     prev.htmlContent === next.htmlContent &&
     prev.annotations === next.annotations &&
-    prev.selectedAnnotationIds.join(",") === next.selectedAnnotationIds.join(",")
+    prev.selectedAnnotationIds.join(",") ===
+      next.selectedAnnotationIds.join(",")
 );
 
 type EditingState = {
@@ -24,16 +25,21 @@ const DocumentViewer = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>([]);
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>(
+    []
+  );
   const [editingState, setEditingState] = useState<EditingState | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const savedRangeRef = useRef<Range | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const fetchDocument = useCallback(async () => {
     if (!documentId) return;
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/v1/documents/${documentId}`);
       const data = await res.json();
@@ -50,7 +56,7 @@ const DocumentViewer = () => {
   }, [documentId, fetchDocument]);
 
   useEffect(() => {
-    const handleMouseUp = () => {
+    const handleSelection = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) {
         setTooltipPosition(null);
@@ -93,8 +99,17 @@ const DocumentViewer = () => {
       }
     };
 
-    document.addEventListener("mouseup", handleMouseUp);
-    return () => document.removeEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mouseup", handleSelection);
+    document.addEventListener("selectionchange", handleSelection);
+    document.addEventListener("touchend", () => {
+      setTimeout(handleSelection, 300);
+    });
+
+    return () => {
+      document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("selectionchange", handleSelection);
+      document.removeEventListener("touchend", handleSelection);
+    };
   }, []);
 
   useEffect(() => {
@@ -111,7 +126,9 @@ const DocumentViewer = () => {
   if (!documentData) return <div>Failed to load document</div>;
 
   const handleToggleAnnotation = (id: number) => {
-    setSelectedAnnotationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedAnnotationIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const handleSaveAnnotation = async () => {
@@ -130,7 +147,9 @@ const DocumentViewer = () => {
       if (!res.ok) throw new Error("Failed to delete annotation");
 
       await fetchDocument();
-      setSelectedAnnotationIds((prev) => prev.filter((id) => id !== annotation.id));
+      setSelectedAnnotationIds((prev) =>
+        prev.filter((id) => id !== annotation.id)
+      );
     } catch (err) {
       console.error("Error deleting annotation:", err);
     }
@@ -169,8 +188,8 @@ const DocumentViewer = () => {
     );
     const end = start + text.length;
 
-    console.log("start offset: ", start)
-    console.log("end offset: ", end)
+    console.log("start offset: ", start);
+    console.log("end offset: ", end);
 
     const newAnnotation: Annotation = {
       id: Date.now(),
@@ -188,21 +207,18 @@ const DocumentViewer = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <Link 
-        to="/" 
+      <Link
+        to="/"
         className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
       >
         <ArrowLeft size={16} />
         Back to Documents
       </Link>
-      <div
-        className="prose relative"
-        ref={wrapperRef}
-      >
+      <div className="prose relative" ref={wrapperRef}>
         <MemoizedDocumentContent
-          key={`annotations-${documentData.annotations.length}-${documentData.annotations
-            .map((a) => a.id)
-            .join(",")}`}
+          key={`annotations-${
+            documentData.annotations.length
+          }-${documentData.annotations.map((a) => a.id).join(",")}`}
           htmlContent={documentData.document.rendered_content}
           annotations={documentData.annotations}
           selectedAnnotationIds={selectedAnnotationIds}
