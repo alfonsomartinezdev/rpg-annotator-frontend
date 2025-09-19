@@ -57,9 +57,16 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     const handleSelection = () => {
+<<<<<<< HEAD
+      if (editingState) {
+        return;
+      }
+=======
       if (editingState) return;
+>>>>>>> main
       
       const selection = window.getSelection();
+      
       if (!selection || selection.isCollapsed) {
         setTooltipPosition(null);
         savedRangeRef.current = null;
@@ -106,30 +113,51 @@ const DocumentViewer = () => {
     };
 
     const handleSelectionChange = () => {
-      if (editingState) return;
+      const activeElement = document.activeElement;
+      if (editingState) {
+        return;
+      }
+      
+      if (activeElement?.tagName === 'TEXTAREA' || 
+          activeElement?.tagName === 'INPUT') {
+        return;
+      }
       
       const selection = window.getSelection();
       
       if (selection && !selection.isCollapsed && wrapperRef.current) {
-        const range = selection.getRangeAt(0);
-        if (wrapperRef.current.contains(range.commonAncestorContainer)) {
-          setTimeout(handleSelection, 10);
+        try {
+          const range = selection.getRangeAt(0);
+          if (wrapperRef.current.contains(range.commonAncestorContainer)) {
+            setTimeout(handleSelection, 10);
+          }
+        } catch (e) {
+          console.log('Error getting range:', e);
         }
       }
     };
 
     const handleTouchEnd = () => {
-      if (editingState) return;
-      setTimeout(handleSelection, 300);
+      if (editingState) {
+        return;
+      }
+      
+      setTimeout(() => {
+        handleSelection();
+      }, 300);
     };
 
-    document.addEventListener("mouseup", handleSelection);
+    const handleMouseUp = () => {
+      handleSelection();
+    };
+
+    document.addEventListener("mouseup", handleMouseUp);
     
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("touchend", handleTouchEnd);
 
     return () => {
-      document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("touchend", handleTouchEnd);
     };
@@ -210,9 +238,6 @@ const DocumentViewer = () => {
       savedRangeRef.current.startOffset
     );
     const end = start + text.length;
-
-    console.log("start offset: ", start);
-    console.log("end offset: ", end);
 
     const newAnnotation: Annotation = {
       id: Date.now(),
