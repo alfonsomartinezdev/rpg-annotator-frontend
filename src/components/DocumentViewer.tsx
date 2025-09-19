@@ -57,9 +57,13 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     const handleSelection = () => {
+<<<<<<< HEAD
       if (editingState) {
         return;
       }
+=======
+      if (editingState) return;
+>>>>>>> main
       
       const selection = window.getSelection();
       
