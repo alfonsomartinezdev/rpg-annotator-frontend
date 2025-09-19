@@ -57,6 +57,8 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     const handleSelection = () => {
+      if (editingState) return;
+      
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) {
         setTooltipPosition(null);
@@ -64,8 +66,12 @@ const DocumentViewer = () => {
         return;
       }
 
-      const range = selection.getRangeAt(0).cloneRange();
-      savedRangeRef.current = range;
+      const range = selection.getRangeAt(0);
+      if (!wrapperRef.current?.contains(range.commonAncestorContainer)) {
+        return;
+      }
+
+      savedRangeRef.current = range.cloneRange();
       const rects = Array.from(range.getClientRects());
 
       if (!rects.length) {
@@ -99,12 +105,35 @@ const DocumentViewer = () => {
       }
     };
 
+    const handleSelectionChange = () => {
+      if (editingState) return;
+      
+      const selection = window.getSelection();
+      
+      if (selection && !selection.isCollapsed && wrapperRef.current) {
+        const range = selection.getRangeAt(0);
+        if (wrapperRef.current.contains(range.commonAncestorContainer)) {
+          setTimeout(handleSelection, 10);
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (editingState) return;
+      setTimeout(handleSelection, 300);
+    };
+
     document.addEventListener("mouseup", handleSelection);
+    
+    document.addEventListener("selectionchange", handleSelectionChange);
+    document.addEventListener("touchend", handleTouchEnd);
 
     return () => {
       document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("touchend", handleTouchEnd);
     };
-  }, []);
+  }, [editingState]);
 
   useEffect(() => {
     if (tooltipPosition && savedRangeRef.current) {
