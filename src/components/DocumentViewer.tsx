@@ -57,6 +57,7 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     const handleSelection = () => {
+
       if (editingState) return;
       
       const selection = window.getSelection();
@@ -156,16 +157,6 @@ const DocumentViewer = () => {
       document.removeEventListener("touchend", handleTouchEnd);
     };
   }, [editingState]);
-
-  useEffect(() => {
-    if (tooltipPosition && savedRangeRef.current) {
-      requestAnimationFrame(() => {
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(savedRangeRef.current!);
-      });
-    }
-  }, [tooltipPosition]);
 
   if (loading) return <div>Loading...</div>;
   if (!documentData) return <div>Failed to load document</div>;
