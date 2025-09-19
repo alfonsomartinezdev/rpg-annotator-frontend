@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import DocumentContent from "./DocumentContent";
@@ -6,14 +6,13 @@ import type { Annotation, DocumentData } from "../types";
 import AnnotationModal from "./AnnotationModal";
 import SelectionTooltip from "./SelectionTooltip";
 import { API_BASE } from "../constants";
-
+import { useTextSelection } from "../hooks/useTextSelection";
 const MemoizedDocumentContent = React.memo(
   DocumentContent,
   (prev, next) =>
     prev.htmlContent === next.htmlContent &&
     prev.annotations === next.annotations &&
-    prev.selectedAnnotationIds.join(",") ===
-      next.selectedAnnotationIds.join(",")
+    prev.selectedAnnotationIds.join(",") === next.selectedAnnotationIds.join(",")
 );
 
 type EditingState = {
@@ -25,21 +24,19 @@ const DocumentViewer = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const [documentData, setDocumentData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>(
-    []
-  );
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<number[]>([]);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
-  const savedRangeRef = useRef<Range | null>(null);
+  
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const { tooltipPosition, savedRange, clearSelection } = useTextSelection({
+    wrapperRef,
+    isModalOpen: !!editingState
+  });
 
   const fetchDocument = useCallback(async () => {
     if (!documentId) return;
-
+    
     try {
       const res = await fetch(`${API_BASE}/api/v1/documents/${documentId}`);
       const data = await res.json();
@@ -51,10 +48,11 @@ const DocumentViewer = () => {
     }
   }, [documentId]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchDocument();
   }, [documentId, fetchDocument]);
 
+<<<<<<< Updated upstream
   useEffect(() => {
     const handleSelection = () => {
 <<<<<<< HEAD
@@ -173,6 +171,8 @@ const DocumentViewer = () => {
     }
   }, [tooltipPosition]);
 
+=======
+>>>>>>> Stashed changes
   if (loading) return <div>Loading...</div>;
   if (!documentData) return <div>Failed to load document</div>;
 
@@ -181,10 +181,53 @@ const DocumentViewer = () => {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+  
+  const handleEditAnnotation = (annotation: Annotation) => {
+    setEditingState({ annotation, isNew: false });
+  };
 
-  const handleSaveAnnotation = async () => {
+    const handleSaveAnnotation = async () => {
     setEditingState(null);
     await fetchDocument();
+  };
+
+  
+  const handleAddAnnotation = () => {
+    if (!savedRange || !wrapperRef.current) return;
+    
+    const text = savedRange.toString().trim();
+    if (!text) return;
+    
+    let textOffset = 0;
+    const walker = document.createTreeWalker(
+      wrapperRef.current, 
+      NodeFilter.SHOW_TEXT
+    );
+    let current: Node | null;
+    
+    while ((current = walker.nextNode())) {
+      if (current === savedRange.startContainer) {
+        textOffset += savedRange.startOffset;
+        break;
+      }
+      textOffset += current.textContent?.length || 0;
+    }
+    
+    const start = textOffset;
+    const end = start + text.length;
+    
+    const newAnnotation: Annotation = {
+      id: Date.now(),
+      selection_text: text,
+      start_offset: start,
+      end_offset: end,
+      annotation_text: "",
+      author: "Anonymous",
+      created_at: new Date().toISOString(),
+    };
+    
+    setEditingState({ annotation: newAnnotation, isNew: true });
+    clearSelection();
   };
 
   const handleDeleteAnnotation = async (annotation: Annotation) => {
@@ -205,54 +248,7 @@ const DocumentViewer = () => {
       console.error("Error deleting annotation:", err);
     }
   };
-
-  const handleEditAnnotation = (annotation: Annotation) => {
-    setEditingState({ annotation, isNew: false });
-  };
-
-  const handleCloseModal = () => {
-    setEditingState(null);
-  };
-
-  const getTextOffset = (root: Node, node: Node, offset: number): number => {
-    let textOffset = 0;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let current: Node | null;
-
-    while ((current = walker.nextNode())) {
-      if (current === node) return textOffset + offset;
-      textOffset += current.textContent?.length || 0;
-    }
-    return textOffset;
-  };
-
-  const handleAddNote = () => {
-    if (!savedRangeRef.current || !wrapperRef.current) return;
-
-    const text = savedRangeRef.current.toString().trim();
-    if (!text) return;
-
-    const start = getTextOffset(
-      wrapperRef.current,
-      savedRangeRef.current.startContainer,
-      savedRangeRef.current.startOffset
-    );
-    const end = start + text.length;
-
-    const newAnnotation: Annotation = {
-      id: Date.now(),
-      selection_text: text,
-      start_offset: start,
-      end_offset: end,
-      annotation_text: "",
-      author: "Anonymous",
-      created_at: new Date().toISOString(),
-    };
-
-    setEditingState({ annotation: newAnnotation, isNew: true });
-    setTooltipPosition(null);
-  };
-
+  
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Link
@@ -262,11 +258,12 @@ const DocumentViewer = () => {
         <ArrowLeft size={16} />
         Back to Documents
       </Link>
+      
       <div className="prose relative" ref={wrapperRef}>
         <MemoizedDocumentContent
-          key={`annotations-${
-            documentData.annotations.length
-          }-${documentData.annotations.map((a) => a.id).join(",")}`}
+          key={`annotations-${documentData.annotations.length}-${documentData.annotations
+            .map((a) => a.id)
+            .join(",")}`}
           htmlContent={documentData.document.rendered_content}
           annotations={documentData.annotations}
           selectedAnnotationIds={selectedAnnotationIds}
@@ -278,14 +275,14 @@ const DocumentViewer = () => {
         {tooltipPosition && (
           <SelectionTooltip
             position={tooltipPosition}
-            onAddNote={handleAddNote}
+            onAddNote={handleAddAnnotation}
           />
         )}
 
         {editingState && (
           <AnnotationModal
             annotation={editingState.annotation}
-            onClose={handleCloseModal}
+            onClose={() => setEditingState(null)}
             onSave={handleSaveAnnotation}
             documentId={documentData.document.id}
             isNew={editingState.isNew}

@@ -21,7 +21,6 @@ const AnnotationModal = ({
   const [annotationText, setAnnotationText] = useState(annotation.annotation_text);
   const [saving, setSaving] = useState(false);
 
-  // Close modal on Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();

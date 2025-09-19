@@ -18,7 +18,6 @@ const InlineAnnotation = ({ annotation, onEdit, onDelete }: InlineAnnotationProp
     event.preventDefault();
     event.stopPropagation();
     
-    // Optional: Add confirmation dialog
     const confirmDelete = window.confirm(
       `Are you sure you want to delete this annotation?\n\n"${annotation.selection_text}"`
     );
