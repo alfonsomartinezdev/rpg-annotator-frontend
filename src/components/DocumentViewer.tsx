@@ -100,15 +100,9 @@ const DocumentViewer = () => {
     };
 
     document.addEventListener("mouseup", handleSelection);
-    document.addEventListener("selectionchange", handleSelection);
-    document.addEventListener("touchend", () => {
-      setTimeout(handleSelection, 300);
-    });
 
     return () => {
       document.removeEventListener("mouseup", handleSelection);
-      document.removeEventListener("selectionchange", handleSelection);
-      document.removeEventListener("touchend", handleSelection);
     };
   }, []);
 
