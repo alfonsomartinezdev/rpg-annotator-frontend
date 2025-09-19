@@ -57,18 +57,13 @@ const DocumentViewer = () => {
 
   useEffect(() => {
     const handleSelection = () => {
-      console.log('handleSelection called');
-      // Skip if modal is open
       if (editingState) {
-        console.log('Modal is open, skipping selection');
         return;
       }
       
       const selection = window.getSelection();
-      console.log('Selection text:', selection?.toString());
       
       if (!selection || selection.isCollapsed) {
-        console.log('No selection or collapsed');
         setTooltipPosition(null);
         savedRangeRef.current = null;
         return;
@@ -76,7 +71,6 @@ const DocumentViewer = () => {
 
       const range = selection.getRangeAt(0);
       if (!wrapperRef.current?.contains(range.commonAncestorContainer)) {
-        console.log('Selection not in wrapper');
         return;
       }
 
@@ -84,7 +78,6 @@ const DocumentViewer = () => {
       const rects = Array.from(range.getClientRects());
 
       if (!rects.length) {
-        console.log('No rects found');
         setTooltipPosition(null);
         return;
       }
@@ -104,7 +97,6 @@ const DocumentViewer = () => {
         const padding = 12;
         x = Math.max(padding, Math.min(wrapper.clientWidth - padding, x));
 
-        console.log('Setting tooltip position:', x, y);
         requestAnimationFrame(() => setTooltipPosition({ x, y }));
       } else {
         requestAnimationFrame(() =>
@@ -117,63 +109,46 @@ const DocumentViewer = () => {
     };
 
     const handleSelectionChange = () => {
-      console.log('selectionchange event fired');
-      // Critical: Skip if modal is open OR if focus is in an input/textarea
       const activeElement = document.activeElement;
       if (editingState) {
-        console.log('Modal is open, skipping selectionchange');
         return;
       }
       
       if (activeElement?.tagName === 'TEXTAREA' || 
           activeElement?.tagName === 'INPUT') {
-        console.log('Active element is', activeElement.tagName, ', skipping');
         return;
       }
       
       const selection = window.getSelection();
-      console.log('Selection in selectionchange:', selection?.toString());
       
       if (selection && !selection.isCollapsed && wrapperRef.current) {
         try {
           const range = selection.getRangeAt(0);
           if (wrapperRef.current.contains(range.commonAncestorContainer)) {
-            console.log('Valid selection found, calling handleSelection in 10ms');
             setTimeout(handleSelection, 10);
-          } else {
-            console.log('Selection not in wrapper');
           }
         } catch (e) {
           console.log('Error getting range:', e);
         }
-      } else {
-        console.log('No valid selection or wrapper');
       }
     };
 
     const handleTouchEnd = () => {
-      console.log('touchend event fired');
-      // Skip if modal is open
       if (editingState) {
-        console.log('Modal is open, skipping touchend');
         return;
       }
       
       setTimeout(() => {
-        console.log('Processing touch selection after 300ms delay');
         handleSelection();
       }, 300);
     };
 
     const handleMouseUp = () => {
-      console.log('mouseup event fired');
       handleSelection();
     };
 
-    // Desktop
     document.addEventListener("mouseup", handleMouseUp);
     
-    // Mobile events - always add them
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("touchend", handleTouchEnd);
 
@@ -259,9 +234,6 @@ const DocumentViewer = () => {
       savedRangeRef.current.startOffset
     );
     const end = start + text.length;
-
-    console.log("start offset: ", start);
-    console.log("end offset: ", end);
 
     const newAnnotation: Annotation = {
       id: Date.now(),
